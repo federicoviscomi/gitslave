@@ -1,33 +1,25 @@
 #!/usr/bin/env python
-import urllib
 import os
 import subprocess
-import argparse
 import sys
 
-# a remote repo uri has a protocol, a host address and a resource path
-# a .gitslave files stores a list of pairs such that:
-# the first element is a resource path relative to the remote repo path
-# of the git repo that stores the .gitslave file
-# and the second element is a local path ... TODO
 from urllib.parse import urlparse
 
 
-def init(gitslave_dir_path, git_slave_list):
-    remore_origin_url = subprocess.check_output('git remote get-url origin'.split()).decode('utf-8')
-    parse_result = urlparse(remore_origin_url)
+def init(gitslave_dir_path, git_slave_list, git_command_arguments):
+    remote_origin_url = subprocess.check_output('git remote get-url origin'.split()).decode('utf-8')
+    parse_result = urlparse(remote_origin_url)
     for remote_repo_resource_relative_path, local_relative_path in git_slave_list:
         print()
+        # mkdir first!
         os.chdir(gitslave_dir_path + '/' + local_relative_path)
-        print(os.getcwd()) # mkdir!
-        print((parse_result.path.strip()) + '/' + remote_repo_resource_relative_path) #git init!
+        print(os.getcwd())
+        print((parse_result.path.strip()) + '/' + remote_repo_resource_relative_path)  # git init!
 
 
 def main():
-    parser = argparse.ArgumentParser("simple_example")
-    parser.add_argument("git_command", help="An integer will be increased by 1 and printed.")
-    args = parser.parse_args()
-    git_command = args.git_command
+    git_command = sys.argv[1]
+    git_command_arguments = ' '.join(sys.argv[2:])
 
     gitslave_file_name = '.gitslave'
     while not os.path.isfile(gitslave_file_name):
@@ -50,12 +42,12 @@ def main():
             gitslave_list.append((remote_repo_resource_relative_path, local_relative_path))
 
     if git_command == 'init':
-        init(gitslave_dir_path, gitslave_list)
+        init(gitslave_dir_path, gitslave_list, git_command_arguments)
     else:
         for relative_path in path_list:
             absolute_path = "{}/{}".format(gitslave_dir_path, relative_path)
             os.chdir(absolute_path)
-            command = "git {}".format(git_command)
+            command = "git {} {}".format(git_command, git_command_arguments)
             print("")
             print("$ cd " + os.getcwd())
             print("$ " + command)
