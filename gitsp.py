@@ -5,11 +5,7 @@ import subprocess
 import argparse
 import sys
 
-# a remote repo has a protocol, a host address and a resource path such as
-#   ssh://git@git.bbp.ch/git/inuc/core/master.git
-# where ssh is the protocol
-#       git@git.bbp.ch is the host address
-#       /git/inuc/core/master.git is the resource path
+# a remote repo uri has a protocol, a host address and a resource path
 # a .gitslave files stores a list of pairs such that:
 # the first element is a resource path relative to the remote repo path
 # of the git repo that stores the .gitslave file
@@ -20,7 +16,6 @@ from urllib.parse import urlparse
 def init(gitslave_dir_path, git_slave_list):
     remore_origin_url = subprocess.check_output('git remote get-url origin'.split()).decode('utf-8')
     parse_result = urlparse(remore_origin_url)
-    # ParseResult(scheme='ssh', netloc='git@git.bbp.ch', path='/git/inuc/core/master.git\n', params='', query='', fragment='')
     for remote_repo_resource_relative_path, local_relative_path in git_slave_list:
         print()
         os.chdir(gitslave_dir_path + '/' + local_relative_path)
