@@ -31,6 +31,20 @@ def populate(git_slave_dir_path, git_slave_list, git_command_arguments):
         os.chdir(git_slave_dir_path)
 
 
+def execute_git_command(slave_path_list, git_slave_dir_path, command, arguments):
+    for relative_path in slave_path_list:
+        absolute_path = "{}/{}".format(git_slave_dir_path, relative_path)
+        os.chdir(absolute_path)
+        full_git_command = "git {} {}".format(command, arguments)
+        print("")
+        print("$ cd " + os.getcwd())
+        print("$ " + full_git_command)
+        sys.stdout.flush()
+        result = subprocess.check_output(full_git_command.split())
+        print(result.decode('utf-8'))
+        sys.stdout.flush()
+
+
 def main():
     command = sys.argv[1]
     arguments = ' '.join(sys.argv[2:])
@@ -55,17 +69,7 @@ def main():
     if command == 'populate':
         populate(git_slave_dir_path, slave_repo_list, arguments)
     else:
-        for relative_path in slave_path_list:
-            absolute_path = "{}/{}".format(git_slave_dir_path, relative_path)
-            os.chdir(absolute_path)
-            command = "git {} {}".format(command, arguments)
-            print("")
-            print("$ cd " + os.getcwd())
-            print("$ " + command)
-            sys.stdout.flush()
-            result = subprocess.check_output(command.split())
-            print(result.decode('utf-8'))
-            sys.stdout.flush()
+        execute_git_command(slave_path_list, git_slave_dir_path, command, arguments)
 
 
 if __name__ == "__main__":
