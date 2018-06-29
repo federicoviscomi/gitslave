@@ -26,7 +26,9 @@ def populate(git_slave_dir_path, git_slave_list, git_command_arguments):
         os.chdir(slave_dir)
         print(os.getcwd())
         assert '../' in remote_repo_resource_relative_path
-        slave_repo = 'ssh://git@git.bbp.ch' + remote_repo_base_path + remote_repo_resource_relative_path[len('../'):]
+        slave_repo = parse_result.scheme + '://' + \
+                     parse_result.netloc + remote_repo_base_path + \
+                     remote_repo_resource_relative_path[len('../'):]
         command = 'git clone -b dev {}'.format(slave_repo)
         sys.stdout.flush()
         print(subprocess.call(command.split()))
