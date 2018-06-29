@@ -6,11 +6,6 @@ import sys
 from urllib.parse import urlparse
 
 
-def init(git_slave_dir_path, git_slave_list, git_command_arguments):
-    print('init not supported yet')
-    raise ValueError
-
-
 def populate(git_slave_dir_path, git_slave_list, git_command_arguments):
     remote_origin_url = subprocess.check_output('git remote get-url origin'.split()).decode('utf-8')
     parse_result = urlparse(remote_origin_url)
@@ -37,38 +32,33 @@ def populate(git_slave_dir_path, git_slave_list, git_command_arguments):
 
 
 def main():
-    git_command = sys.argv[1]
-    git_command_arguments = ' '.join(sys.argv[2:])
-
-    git_slave_file_name = '.gitslave'
-    while not os.path.isfile(git_slave_file_name):
+    command = sys.argv[1]
+    arguments = ' '.join(sys.argv[2:])
+    slave_list_file_name = '.gitslave'
+    while not os.path.isfile(slave_list_file_name):
         os.chdir(os.path.dirname(os.getcwd()))
         if os.getcwd() == os.path.dirname(os.getcwd()):
             print("no .gitslave file found")
             exit(-1)
-
     git_slave_dir_path = os.getcwd().replace('\\', '/')
     print(".gitslave file found in {}".format(git_slave_dir_path))
-
-    path_list = []
-    git_slave_list = []
-    with open(git_slave_file_name) as gitslave_config_fdin:
-        for line in gitslave_config_fdin:
-            remote_repo_resource_relative_path, local_relative_path = line.split()
+    slave_path_list = []
+    slave_repo_list = []
+    with open(slave_list_file_name) as slave_list_file_reader:
+        for slave_list_file_line in slave_list_file_reader:
+            remote_repo_resource_relative_path, local_relative_path = slave_list_file_line.split()
             local_relative_path = local_relative_path.replace("\"", "")
             remote_repo_resource_relative_path = remote_repo_resource_relative_path.replace("\"", "")
-            path_list.append(local_relative_path)
-            git_slave_list.append((remote_repo_resource_relative_path, local_relative_path))
+            slave_path_list.append(local_relative_path)
+            slave_repo_list.append((remote_repo_resource_relative_path, local_relative_path))
 
-    if git_command == 'init':
-        init(git_slave_dir_path, git_slave_list, git_command_arguments)
-    elif git_command == 'populate':
-        populate(git_slave_dir_path, git_slave_list, git_command_arguments)
+    if command == 'populate':
+        populate(git_slave_dir_path, slave_repo_list, arguments)
     else:
-        for relative_path in path_list:
+        for relative_path in slave_path_list:
             absolute_path = "{}/{}".format(git_slave_dir_path, relative_path)
             os.chdir(absolute_path)
-            command = "git {} {}".format(git_command, git_command_arguments)
+            command = "git {} {}".format(command, arguments)
             print("")
             print("$ cd " + os.getcwd())
             print("$ " + command)
