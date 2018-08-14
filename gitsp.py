@@ -1,53 +1,167 @@
 #!/usr/bin/env python
+import argparse
 import os
+import string
 import subprocess
+import sys
+import signal
 import sys
 
 from urllib.parse import urlparse
 
+ENCODING = 'utf-8'
+
 
 def populate(git_slave_dir_path, git_slave_list, git_command_arguments):
-    remote_origin_url = subprocess.check_output('git remote get-url origin'.split()).decode('utf-8')
+    remote_origin_url = subprocess.check_output('git remote get-url origin'.split()).decode(ENCODING)
     parse_result = urlparse(remote_origin_url)
     remote_repo_base_path = (parse_result.path.strip())
-    remote_repo_base_path = remote_repo_base_path[:len(remote_repo_base_path) - len('master.git')]
+    remote_repo_base_path = remote_repo_base_path[:remote_repo_base_path.rfind('/') + 1]
     for remote_repo_resource_relative_path, local_relative_path in git_slave_list:
         print('\n')
-        slave_dir = git_slave_dir_path + '/' + local_relative_path
-        try:
-            os.mkdir(slave_dir)
-        except FileExistsError:
-            print('folder already exists')
-        os.chdir(slave_dir)
+        if False:
+            slave_dir = git_slave_dir_path + '/' + local_relative_path
+            try:
+                os.mkdir(slave_dir)
+            except FileExistsError:
+                print('folder {} already exists'.format(slave_dir))
+            os.chdir(slave_dir)
         print(os.getcwd())
         assert '../' in remote_repo_resource_relative_path
+        # print(parse_result)
         slave_repo = parse_result.scheme + '://' + \
                      parse_result.netloc + remote_repo_base_path + \
                      remote_repo_resource_relative_path[len('../'):]
-        command = 'git clone -b dev {}'.format(slave_repo)
+        command = 'git clone {}'.format(slave_repo)
         sys.stdout.flush()
+        print(command)
         print(subprocess.call(command.split()))
         sys.stdout.flush()
         os.chdir(git_slave_dir_path)
 
 
+def execute_shell_command(slave_path_list, git_slave_dir_path, command, full_shell_command):
+    assert command == 'exec'
+    output_script_file_name = "{}.sh".format(full_shell_command.replace(' ', '_').replace('|', '_PIPE_'))
+    print(output_script_file_name)
+    print("writing to {}".format(output_script_file_name))
+    with open(output_script_file_name, 'w') as out_file_writer:
+        out_file_writer.write("#!/bin/bash\n")
+        for relative_path in slave_path_list:
+            try:
+                absolute_path = "{}/{}".format(git_slave_dir_path, relative_path)
+                os.chdir(absolute_path)
+                out_file_writer.write("\necho\necho\necho\necho\necho\necho\necho")
+                out_file_writer.write("\ncd " + os.getcwd().replace('\\', '\\\\'))
+                out_file_writer.write("\npwd")
+                out_file_writer.write("\n{}".format(full_shell_command))
+                sys.stdout.flush()
+            except subprocess.CalledProcessError as e:
+                print(e)
+    print("done")
+
+
 def execute_git_command(slave_path_list, git_slave_dir_path, command, arguments):
     for relative_path in slave_path_list:
-        absolute_path = "{}/{}".format(git_slave_dir_path, relative_path)
-        os.chdir(absolute_path)
-        full_git_command = "git {} {}".format(command, arguments)
-        print("")
-        print("$ cd " + os.getcwd())
-        print("$ " + full_git_command)
-        sys.stdout.flush()
-        result = subprocess.check_output(full_git_command.split())
-        print(result.decode('utf-8'))
-        sys.stdout.flush()
+        try:
+            absolute_path = "{}/{}".format(git_slave_dir_path, relative_path)
+            os.chdir(absolute_path)
+            full_git_command = "git {} {}".format(command, arguments)
+            print("")
+            print("$ cd " + os.getcwd())
+            print("$ " + full_git_command)
+            sys.stdout.flush()
+            result = subprocess.check_output(full_git_command.split())
+            # print(result)
+            print(result.decode(ENCODING, errors='ignore'))
+            sys.stdout.flush()
+        except subprocess.CalledProcessError as e:
+            print(e)
+        except UnicodeDecodeError as e:
+            print(e)
 
 
-def main():
-    command = sys.argv[1]
-    arguments = ' '.join(sys.argv[2:])
+def track_all(slave_path_list, git_slave_dir_path, arguments):
+    for relative_path in slave_path_list:
+        try:
+            absolute_path = "{}/{}".format(git_slave_dir_path, relative_path)
+            os.chdir(absolute_path)
+            full_command = """
+                git branch --all {}
+            """.format(arguments)
+            # print("$ " + full_command)
+            sys.stdout.flush()
+            result = subprocess.check_output(full_command.split()).decode(ENCODING)
+            branches = []
+            for branch in result.split():
+                if '->' not in branch and 'HEAD' not in branch and 'master' not in branch and 'remotes' in branch:
+                    branches.append(branch)
+            sys.stdout.flush()
+            for branch in branches:
+                try:
+                    full_command = """
+                        git branch --track {local_branch} {remote_branch}
+                    """.format(local_branch=branch[branch.rfind('/') + 1:], remote_branch=branch)
+                    print("")
+                    print("$ cwd " + os.getcwd())
+                    print(full_command)
+                    result = subprocess.check_output(full_command.split()).decode(ENCODING)
+                    print(result)
+                except subprocess.CalledProcessError as e:
+                    print(e)
+        except ValueError as e:
+            print(e)
+
+
+def checkout_pull_all(slave_path_list, git_slave_dir_path, arguments):
+    for relative_path in slave_path_list:
+        try:
+            absolute_path = "{}/{}".format(git_slave_dir_path, relative_path)
+            os.chdir(absolute_path)
+            full_command = """
+                git branch --all {}
+            """.format(arguments)
+            # print("$ " + full_command)
+            sys.stdout.flush()
+            result = subprocess.check_output(full_command.split()).decode(ENCODING)
+            branches = []
+            for branch in result.split():
+                if '->' not in branch and 'HEAD' not in branch and 'master' not in branch and 'remotes' in branch:
+                    branches.append(branch)
+            sys.stdout.flush()
+            for branch in branches:
+                try:
+                    full_command = """
+                        git checkout {local_branch}
+                    """.format(local_branch=branch[branch.rfind('/') + 1:])
+                    print("")
+                    print("$ cwd " + os.getcwd())
+                    print(full_command)
+                    result = subprocess.check_output(full_command.split()).decode(ENCODING)
+                    print(result)
+
+                    full_command = """
+                        git pull
+                    """
+                    print("")
+                    print("$ cwd " + os.getcwd())
+                    print(full_command)
+                    result = subprocess.check_output(full_command.split()).decode(ENCODING)
+                    print(result)
+                except subprocess.CalledProcessError as e:
+                    print(e)
+        except ValueError as e:
+            print(e)
+
+
+def signal_handler(sig, frame):
+    print('You pressed Ctrl+C!')
+    sys.stdout.flush()
+    sys.exit(0)
+    # doesn't work!
+
+
+def look_for_slaves_file():
     slave_list_file_name = '.gitslave'
     while not os.path.isfile(slave_list_file_name):
         os.chdir(os.path.dirname(os.getcwd()))
@@ -65,12 +179,43 @@ def main():
             remote_repo_resource_relative_path = remote_repo_resource_relative_path.replace("\"", "")
             slave_path_list.append(local_relative_path)
             slave_repo_list.append((remote_repo_resource_relative_path, local_relative_path))
+    return git_slave_dir_path, slave_repo_list, slave_path_list
 
+
+def parse_arguments():
+    arguments = ' '.join(sys.argv[2:])
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument('command', type=str)
+    # parser.add_argument('arguments', nargs='*')
+    # args = parser.parse_args()
+    # print(args)
+    # command = args.command
+    # return command, arguments
+    return sys.argv[1], arguments
+
+
+def main():
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    print("""
+        Gitslave clone in python.
+    """)
+    git_slave_dir_path, slave_repo_list, slave_path_list = look_for_slaves_file()
+    command, arguments = parse_arguments()
     if command == 'populate':
         populate(git_slave_dir_path, slave_repo_list, arguments)
+    elif command == 'track_all':
+        track_all(slave_path_list, git_slave_dir_path, arguments)
+    elif command == 'checkout_pull_all':
+        checkout_pull_all(slave_path_list, git_slave_dir_path, arguments)
+    elif command == 'exec':
+        execute_shell_command(slave_path_list, git_slave_dir_path, command, arguments)
     else:
         execute_git_command(slave_path_list, git_slave_dir_path, command, arguments)
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt as e:
+        print(e)
