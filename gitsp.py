@@ -17,43 +17,57 @@ def populate(git_slave_dir_path, git_slave_list, git_command_arguments):
     parse_result = urlparse(remote_origin_url)
     remote_repo_base_path = (parse_result.path.strip())
     remote_repo_base_path = remote_repo_base_path[:remote_repo_base_path.rfind('/') + 1]
-    for remote_repo_resource_relative_path, local_relative_path in git_slave_list:
-        print('\n')
-        if False:
+    with open('populate.sh', 'w') as out_file_writer:
+        out_file_writer.write("#!/bin/bash")
+        out_file_writer.write('\n')
+        for remote_repo_resource_relative_path, local_relative_path in git_slave_list:
+            out_file_writer.write('echo\n')
+            out_file_writer.write('echo\n')
+            assert '../' in remote_repo_resource_relative_path
+            slave_repo = parse_result.scheme + '://' + \
+                         parse_result.netloc + remote_repo_base_path + \
+                         remote_repo_resource_relative_path[len('../'):]
+            command = 'git clone {}'.format(slave_repo)
+            out_file_writer.write('echo "{}"'.format(command))
+            out_file_writer.write('\n')
+            out_file_writer.write(command)
+            out_file_writer.write('\n')
+    print('run script populate.sh')
+
+
+def empty(git_slave_dir_path, git_slave_list):
+    file_name = 'empty.sh'
+    print('to empty this gitslave repo, run the command {}'.format(file_name))
+    with open(file_name, 'w') as out_file_writer:
+        out_file_writer.write("#!/bin/bash")
+        for remote_repo_resource_relative_path, local_relative_path in git_slave_list:
+            out_file_writer.write("\n")
             slave_dir = git_slave_dir_path + '/' + local_relative_path
-            try:
-                os.mkdir(slave_dir)
-            except FileExistsError:
-                print('folder {} already exists'.format(slave_dir))
-            os.chdir(slave_dir)
-        print(os.getcwd())
-        assert '../' in remote_repo_resource_relative_path
-        # print(parse_result)
-        slave_repo = parse_result.scheme + '://' + \
-                     parse_result.netloc + remote_repo_base_path + \
-                     remote_repo_resource_relative_path[len('../'):]
-        command = 'git clone {}'.format(slave_repo)
-        sys.stdout.flush()
-        print(command)
-        print(subprocess.call(command.split()))
-        sys.stdout.flush()
-        os.chdir(git_slave_dir_path)
+            rm_command = 'rm -Rf {}'.format(slave_dir)
+            echo_command = 'echo "{}"'.format(rm_command)
+            out_file_writer.write(echo_command)
+            out_file_writer.write("\n")
+            out_file_writer.write(rm_command)
+            out_file_writer.write("\n")
+            sys.stdout.flush()
 
 
 def execute_shell_command(slave_path_list, git_slave_dir_path, command, full_shell_command):
     assert command == 'exec'
-    output_script_file_name = "{}.sh".format(full_shell_command.replace(' ', '_').replace('|', '_PIPE_'))
+    output_script_file_name = "{}.sh" \
+        .format(full_shell_command.replace(' ', '_').replace('|', '_PIPE_').replace('/', '_SLASH_'))
     print(output_script_file_name)
     print("writing to {}".format(output_script_file_name))
     with open(output_script_file_name, 'w') as out_file_writer:
-        out_file_writer.write("#!/bin/bash\n")
+        out_file_writer.write("\n#!/bin/bash\n")
         for relative_path in slave_path_list:
             try:
                 absolute_path = "{}/{}".format(git_slave_dir_path, relative_path)
                 os.chdir(absolute_path)
-                out_file_writer.write("\necho\necho\necho\necho\necho\necho\necho")
+                out_file_writer.write('\n\n\necho -e "\\n\\n\\n" ')
                 out_file_writer.write("\ncd " + os.getcwd().replace('\\', '\\\\'))
                 out_file_writer.write("\npwd")
+                out_file_writer.write('\necho "{}"'.format(full_shell_command))
                 out_file_writer.write("\n{}".format(full_shell_command))
                 sys.stdout.flush()
             except subprocess.CalledProcessError as e:
@@ -210,6 +224,8 @@ def main():
         checkout_pull_all(slave_path_list, git_slave_dir_path, arguments)
     elif command == 'exec':
         execute_shell_command(slave_path_list, git_slave_dir_path, command, arguments)
+    elif command == 'empty':
+        empty(git_slave_dir_path, slave_repo_list)
     else:
         execute_git_command(slave_path_list, git_slave_dir_path, command, arguments)
 
