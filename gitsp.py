@@ -27,7 +27,7 @@ def populate(git_slave_dir_path, git_slave_list, git_command_arguments):
             slave_repo = parse_result.scheme + '://' + \
                          parse_result.netloc + remote_repo_base_path + \
                          remote_repo_resource_relative_path[len('../'):]
-            command = 'git clone {}'.format(slave_repo)
+            command = 'git clone -b dev {}'.format(slave_repo)
             out_file_writer.write('echo "{}"'.format(command))
             out_file_writer.write('\n')
             out_file_writer.write(command)
@@ -55,7 +55,15 @@ def empty(git_slave_dir_path, git_slave_list):
 def execute_shell_command(slave_path_list, git_slave_dir_path, command, full_shell_command):
     assert command == 'exec'
     output_script_file_name = "{}.sh" \
-        .format(full_shell_command.replace(' ', '_').replace('|', '_PIPE_').replace('/', '_SLASH_'))
+        .format(full_shell_command
+                .replace(' ', '_')
+                .replace('|', '_PIPE_')
+                .replace('/', '_SLASH_')
+                .replace('-', '_DASH_')
+                .replace('"', '_DOUBLEQUOTE_')
+                .replace('=', '_EQUALS_')
+                .replace(':', '_COLON_')
+                )
     print(output_script_file_name)
     print("writing to {}".format(output_script_file_name))
     with open(output_script_file_name, 'w') as out_file_writer:
