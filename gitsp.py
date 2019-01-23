@@ -97,8 +97,8 @@ def execute_git_command(slave_path_list, git_slave_dir_path, command, arguments)
             # print(result)
             print(result.decode(ENCODING, errors='ignore'))
             sys.stdout.flush()
-        except subprocess.CalledProcessError as e:
-            print(e)
+        #except subprocess.CalledProcessError as e:
+        #    print(e)
         except UnicodeDecodeError as e:
             print(e)
 
